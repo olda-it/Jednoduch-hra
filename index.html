@@ -44,9 +44,9 @@ let player = { x:50, y:0, width:40, height:40, speed:10, color:'green' };
 let obstacles = [];
 let obstacleSpeed = 6;
 let score = 0;
-let minGap = player.height * 1.5;
+let minGap = player.height * 1.8; // minimální mezera
 let maxGap = 250;
-let minDistance = 200;
+let minDistance = 250; // vzdálenost mezi překážkami
 let gameOver = false;
 let keys = {};
 
@@ -110,7 +110,7 @@ function checkOrientation() {
     }
 }
 
-// Vytvoření překážky
+// Vytvoření překážky (vždy projítelné)
 function createObstacle(){
     const gap = Math.random() * (maxGap - minGap) + minGap;
     const topHeight = Math.random() * (canvas.height - gap - 40) + 20;
@@ -153,25 +153,30 @@ function updateGameArea(){
         ctx.fillRect(obs.x, 0, obs.width, obs.topHeight);
         ctx.fillRect(obs.x, canvas.height - obs.bottomHeight, obs.width, obs.bottomHeight);
 
+        // Kolize
         if(player.x < obs.x + obs.width && player.x + player.width > obs.x &&
            (player.y < obs.topHeight || player.y + player.height > canvas.height - obs.bottomHeight)){
             endGame(); return;
         }
 
+        // Skóre
         if(!obs.passed && obs.x + obs.width < player.x){
             obs.passed = true;
             score++;
             scoreDisplay.textContent = `Skóre: ${score}`;
         }
 
+        // Odstranění překážek mimo obrazovku
         if(obs.x + obs.width < 0){
             obstacles.splice(i,1);
             i--;
         }
     }
 
+    // Generování překážek
     if(Math.random() < 0.1) createObstacle();
 
+    // Postupné zvyšování obtížnosti
     if(score % 5 === 0 && score !== 0) obstacleSpeed = 6 + score/10;
 
     ctx.fillStyle = '#fff';
