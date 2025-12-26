@@ -17,7 +17,7 @@
         #gameCanvas {
             border: 2px solid #fff;
             background-color: #000;
-            touch-action: none;
+            touch-action: none; /* pro mobil */
         }
 
         #scoreDisplay {
@@ -66,11 +66,11 @@
         let gameOver = false;
         let keys = {};
 
-        // --- Ovládání PC (šipky) ---
+        // --- Ovládání šipkami (PC) ---
         window.addEventListener('keydown', e => keys[e.key] = true);
         window.addEventListener('keyup', e => keys[e.key] = false);
 
-        // --- Dotyk / mobil ---
+        // --- Dotyk (mobil) ---
         function setPlayerY(y) {
             player.y = y - player.height / 2;
             if (player.y < 0) player.y = 0;
@@ -85,12 +85,7 @@
             setPlayerY(y);
         }, { passive: false });
 
-        canvas.addEventListener('mousemove', (e) => {
-            if (navigator.maxTouchPoints > 0) return; // ignorovat myš na mobilu
-            const rect = canvas.getBoundingClientRect();
-            const y = e.clientY - rect.top;
-            setPlayerY(y);
-        });
+        // Myš na PC **nepoužíváme**, kostka se pohybuje jen šipkami
 
         function createObstacle() {
             const gap = Math.random() * (maxGap - minGap) + minGap;
@@ -116,7 +111,7 @@
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Pohyb hráče na PC
+            // Pohyb hráče na PC (šipky)
             if (keys['ArrowUp'] && player.y > 0) player.y -= player.speed;
             if (keys['ArrowDown'] && player.y < canvas.height - player.height) player.y += player.speed;
 
