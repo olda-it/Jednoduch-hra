@@ -30,7 +30,7 @@ body {
     font-size: 20px;
 }
 
-/* Landscape – zobrazíme upozornění a skryjeme canvas */
+/* Landscape – upozornění a skrytí canvasu */
 @media screen and (orientation: landscape) {
     body::after {
         content: "Prosím, otočte telefon na výšku (portrait).";
@@ -63,10 +63,9 @@ let player = { x:50, y:0, width:40, height:40, speed:10, color:'green' };
 let obstacles = [];
 let obstacleSpeed = 6;
 let score = 0;
-let minGap = player.height + 80;
-let maxGap = 350;
-let lastObstaclePosition = { top:0, bottom:canvas.height };
-let minDistance = 150;
+let minGap = player.height * 1.5; // minimální mezera, aby hráč prošel
+let maxGap = 250;
+let minDistance = 200; // minimální vzdálenost mezi překážkami
 let gameOver = false;
 let keys = {};
 
@@ -84,11 +83,11 @@ function resizeCanvas(){
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-// --- PC ovládání šipkami ---
+// PC ovládání šipkami
 document.addEventListener('keydown', e => keys[e.key] = true);
 document.addEventListener('keyup', e => keys[e.key] = false);
 
-// --- Mobil – dotyk ---
+// Mobil – dotyk
 canvas.addEventListener('touchmove', e => {
     e.preventDefault();
     const touch = e.touches[0];
@@ -101,19 +100,26 @@ canvas.addEventListener('touchmove', e => {
 
 // Vytvoření překážky
 function createObstacle(){
-    const topHeight = Math.random() * (canvas.height - maxGap - 20) + 20;
     const gap = Math.random() * (maxGap - minGap) + minGap;
+    const topHeight = Math.random() * (canvas.height - gap - 40) + 20;
     const bottomHeight = canvas.height - topHeight - gap;
 
-    if(Math.abs(lastObstaclePosition.top - topHeight)<minDistance || Math.abs(lastObstaclePosition.bottom - bottomHeight)<minDistance) return;
+    // Kontrola minimální vzdálenosti od poslední překážky
+    if(obstacles.length > 0){
+        const last = obstacles[obstacles.length - 1];
+        if(canvas.width - last.x < minDistance) return;
+    }
 
-    lastObstaclePosition.top = topHeight;
-    lastObstaclePosition.bottom = bottomHeight;
-
-    obstacles.push({ x:canvas.width, topHeight, bottomHeight, width:20, passed:false });
+    obstacles.push({
+        x: canvas.width,
+        topHeight,
+        bottomHeight,
+        width: 20,
+        passed: false
+    });
 }
 
-// Hlavní herní smyčka
+// Hlavní smyčka hry
 function updateGameArea(){
     if(gameOver) return;
 
