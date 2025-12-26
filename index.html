@@ -30,8 +30,8 @@ body {
     font-size: 20px;
 }
 
-/* Landscape – upozornění a skrytí canvasu */
-@media screen and (orientation: landscape) {
+/* Landscape pouze na mobilu (max-width: 768px) */
+@media only screen and (max-width: 768px) and (orientation: landscape) {
     body::after {
         content: "Prosím, otočte telefon na výšku (portrait).";
         position: fixed;
@@ -63,15 +63,15 @@ let player = { x:50, y:0, width:40, height:40, speed:10, color:'green' };
 let obstacles = [];
 let obstacleSpeed = 6;
 let score = 0;
-let minGap = player.height * 1.5; // minimální mezera, aby hráč prošel
+let minGap = player.height * 1.5; // minimální mezera
 let maxGap = 250;
-let minDistance = 200; // minimální vzdálenost mezi překážkami
+let minDistance = 200; // vzdálenost mezi překážkami
 let gameOver = false;
 let keys = {};
 
 // Responzivní canvas
 function resizeCanvas(){
-    if(window.innerHeight > window.innerWidth){
+    if(window.innerHeight > window.innerWidth || window.innerWidth > 768){
         canvas.width = window.innerWidth * 0.95;
         canvas.height = window.innerHeight * 0.8;
         if(player.y === 0) player.y = canvas.height/2 - player.height/2;
@@ -104,7 +104,6 @@ function createObstacle(){
     const topHeight = Math.random() * (canvas.height - gap - 40) + 20;
     const bottomHeight = canvas.height - topHeight - gap;
 
-    // Kontrola minimální vzdálenosti od poslední překážky
     if(obstacles.length > 0){
         const last = obstacles[obstacles.length - 1];
         if(canvas.width - last.x < minDistance) return;
@@ -119,7 +118,7 @@ function createObstacle(){
     });
 }
 
-// Hlavní smyčka hry
+// Hlavní smyčka
 function updateGameArea(){
     if(gameOver) return;
 
@@ -142,7 +141,6 @@ function updateGameArea(){
         ctx.fillRect(obs.x, 0, obs.width, obs.topHeight);
         ctx.fillRect(obs.x, canvas.height - obs.bottomHeight, obs.width, obs.bottomHeight);
 
-        // Kolize
         if(player.x < obs.x + obs.width && player.x + player.width > obs.x &&
            (player.y < obs.topHeight || player.y + player.height > canvas.height - obs.bottomHeight)){
             endGame(); return;
