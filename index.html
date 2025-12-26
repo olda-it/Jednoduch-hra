@@ -29,25 +29,6 @@ body {
     color: #fff;
     font-size: 20px;
 }
-
-/* Landscape pouze na mobilu (max-width: 768px) */
-@media only screen and (max-width: 768px) and (orientation: landscape) {
-    body::after {
-        content: "Prosím, otočte telefon na výšku (portrait).";
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: #000;
-        color: #fff;
-        font-size: 24px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-        text-align: center;
-        padding: 20px;
-    }
-    #gameCanvas { display: none; }
-}
 </style>
 </head>
 <body tabindex="0">
@@ -63,15 +44,20 @@ let player = { x:50, y:0, width:40, height:40, speed:10, color:'green' };
 let obstacles = [];
 let obstacleSpeed = 6;
 let score = 0;
-let minGap = player.height * 1.5; // minimální mezera
+let minGap = player.height * 1.5;
 let maxGap = 250;
-let minDistance = 200; // vzdálenost mezi překážkami
+let minDistance = 200;
 let gameOver = false;
 let keys = {};
 
+// Detekce mobilu
+function isMobile() {
+    return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+}
+
 // Responzivní canvas
 function resizeCanvas(){
-    if(window.innerHeight > window.innerWidth || window.innerWidth > 768){
+    if(!isMobile() || window.innerHeight > window.innerWidth){
         canvas.width = window.innerWidth * 0.95;
         canvas.height = window.innerHeight * 0.8;
         if(player.y === 0) player.y = canvas.height/2 - player.height/2;
@@ -80,14 +66,15 @@ function resizeCanvas(){
         canvas.height = 0;
     }
 }
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+window.addEventListener('resize', () => { resizeCanvas(); checkOrientation(); });
+window.addEventListener('orientationchange', checkOrientation);
+window.addEventListener('load', () => { resizeCanvas(); checkOrientation(); });
 
-// PC ovládání šipkami
+// --- PC ovládání šipkami ---
 document.addEventListener('keydown', e => keys[e.key] = true);
 document.addEventListener('keyup', e => keys[e.key] = false);
 
-// Mobil – dotyk
+// --- Mobil – dotyk ---
 canvas.addEventListener('touchmove', e => {
     e.preventDefault();
     const touch = e.touches[0];
@@ -97,6 +84,31 @@ canvas.addEventListener('touchmove', e => {
     if(player.y < 0) player.y = 0;
     if(player.y + player.height > canvas.height) player.y = canvas.height - player.height;
 }, {passive:false});
+
+// Kontrola orientace mobilu
+function checkOrientation() {
+    if(isMobile() && window.innerHeight < window.innerWidth){
+        canvas.style.display = 'none';
+        scoreDisplay.style.display = 'none';
+        if(!document.getElementById('rotateNotice')){
+            const notice = document.createElement('div');
+            notice.id = 'rotateNotice';
+            notice.textContent = 'Prosím, otočte telefon na výšku (portrait).';
+            notice.style.cssText = `
+                position: fixed; top:0; left:0; right:0; bottom:0;
+                background:#000; color:#fff; font-size:24px;
+                display:flex; justify-content:center; align-items:center;
+                text-align:center; padding:20px; z-index:1000;
+            `;
+            document.body.appendChild(notice);
+        }
+    } else {
+        canvas.style.display = 'block';
+        scoreDisplay.style.display = 'block';
+        const notice = document.getElementById('rotateNotice');
+        if(notice) notice.remove();
+    }
+}
 
 // Vytvoření překážky
 function createObstacle(){
