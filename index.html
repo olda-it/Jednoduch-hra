@@ -5,133 +5,84 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hra PC & Mobil</title>
 <style>
-    body { margin: 0; background-color: #282c34; font-family: Arial, sans-serif; display:flex; justify-content:center; align-items:center; }
-    #gameCanvas { border:2px solid #fff; background-color:#000; touch-action:none; display:block; }
-    #scoreDisplay { position:absolute; top:10px; left:10px; color:#fff; font-size:20px; }
+body { margin:0; background:#282c34; font-family:Arial,sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; }
+#gameCanvas { border:2px solid #fff; background:#000; touch-action:none; display:block; }
+#scoreDisplay { position:absolute; top:10px; left:10px; color:#fff; font-size:20px; }
 </style>
 </head>
-<body>
+<body tabindex="0">
 <canvas id="gameCanvas"></canvas>
 <div id="scoreDisplay">Skóre: 0</div>
-
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreDisplay = document.getElementById('scoreDisplay');
 
-function resizeCanvas() {
-    canvas.width = window.innerWidth * 0.95;
-    canvas.height = window.innerHeight * 0.8;
-}
-window.addEventListener('resize', resizeCanvas);
+function resizeCanvas(){ canvas.width = window.innerWidth*0.95; canvas.height=window.innerHeight*0.8; }
+window.addEventListener('resize',resizeCanvas);
 resizeCanvas();
 
-let player = { x:50, y:canvas.height/2 - 20, width:40, height:40, speed:8, color:'green' };
-let obstacles = [];
-let obstacleSpeed = 5;
-let score = 0;
-let minGap = player.height + 80;
-let maxGap = 180;
-let minDistance = 180;
-let gameOver = false;
-let keys = {};
+let player={x:50,y:canvas.height/2-20,width:40,height:40,speed:8,color:'green'};
+let obstacles=[], obstacleSpeed=5, score=0;
+let minGap=player.height+80, maxGap=180, minDistance=180, gameOver=false;
+let keys={};
 
 // PC šipky
-window.addEventListener('keydown', e => { keys[e.key] = true; });
-window.addEventListener('keyup', e => { keys[e.key] = false; });
+document.addEventListener('keydown', e=>keys[e.key]=true);
+document.addEventListener('keyup', e=>keys[e.key]=false);
 
-// Mobil – dotyk
-function setPlayerY(y){
-    player.y = y - player.height/2;
-    if(player.y <0) player.y =0;
-    if(player.y + player.height > canvas.height) player.y = canvas.height - player.height;
-}
-canvas.addEventListener('touchmove', e=>{
-    e.preventDefault();
-    const touch = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
-    const y = touch.clientY - rect.top;
-    setPlayerY(y);
-}, {passive:false});
+// Mobil
+function setPlayerY(y){ player.y=y-player.height/2; if(player.y<0)player.y=0; if(player.y+player.height>canvas.height)player.y=canvas.height-player.height;}
+canvas.addEventListener('touchmove',e=>{e.preventDefault(); const touch=e.touches[0]; const rect=canvas.getBoundingClientRect(); setPlayerY(touch.clientY-rect.top);},{passive:false});
 
-// Funkce pro generování překážek
+// Překážky
 function createObstacle(){
-    const gap = Math.random()*(maxGap-minGap)+minGap;
-    const topHeight = Math.random()*(canvas.height-gap-40)+20;
-    const bottomHeight = canvas.height - topHeight - gap;
-
-    if(obstacles.length>0){
-        const last = obstacles[obstacles.length-1];
-        if(canvas.width - last.x < minDistance) return;
-    }
-
-    obstacles.push({ x:canvas.width, topHeight, bottomHeight, width:20, passed:false });
+    const gap=Math.random()*(maxGap-minGap)+minGap;
+    const topHeight=Math.random()*(canvas.height-gap-40)+20;
+    const bottomHeight=canvas.height-topHeight-gap;
+    if(obstacles.length>0){const last=obstacles[obstacles.length-1]; if(canvas.width-last.x<minDistance)return;}
+    obstacles.push({x:canvas.width, topHeight, bottomHeight, width:20, passed:false});
 }
 
 // Hlavní smyčka
 function updateGameArea(){
-    if(gameOver) return;
-
+    if(gameOver)return;
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // Pohyb hráče šipkami
+    // PC šipky
     if(keys['ArrowUp'] && player.y>0) player.y -= player.speed;
-    if(keys['ArrowDown'] && player.y<canvas.height - player.height) player.y += player.speed;
+    if(keys['ArrowDown'] && player.y<canvas.height-player.height) player.y += player.speed;
 
     // Kreslení hráče
-    ctx.fillStyle = player.color;
-    ctx.fillRect(player.x, player.y, player.width, player.height);
+    ctx.fillStyle=player.color;
+    ctx.fillRect(player.x,player.y,player.width,player.height);
 
     // Překážky
     for(let i=0;i<obstacles.length;i++){
-        const obs = obstacles[i];
+        const obs=obstacles[i];
         obs.x -= obstacleSpeed;
-
         ctx.fillStyle='red';
         ctx.fillRect(obs.x,0,obs.width,obs.topHeight);
         ctx.fillRect(obs.x,canvas.height-obs.bottomHeight,obs.width,obs.bottomHeight);
 
-        // Kolize
-        if(player.x < obs.x + obs.width && player.x + player.width > obs.x &&
-           (player.y < obs.topHeight || player.y + player.height > canvas.height - obs.bottomHeight)){
-            endGame();
-            return;
+        if(player.x<obs.x+obs.width && player.x+player.width>obs.x &&
+           (player.y<obs.topHeight || player.y+player.height>canvas.height-obs.bottomHeight)){
+            endGame(); return;
         }
 
-        if(!obs.passed && obs.x + obs.width < player.x){
-            obs.passed = true;
-            score++;
-            scoreDisplay.textContent = `Skóre: ${score}`;
-        }
+        if(!obs.passed && obs.x+obs.width<player.x){ obs.passed=true; score++; scoreDisplay.textContent=`Skóre: ${score}`; }
 
-        if(obs.x + obs.width <0){
-            obstacles.splice(i,1);
-            i--;
-        }
+        if(obs.x+obs.width<0){ obstacles.splice(i,1); i--; }
     }
 
     if(Math.random()<0.08) createObstacle();
-
-    obstacleSpeed = 5 + score/5;
+    obstacleSpeed=5+score/5;
 
     requestAnimationFrame(updateGameArea);
 }
 
-function endGame(){
-    gameOver = true;
-    setTimeout(()=>{ alert(`Konec hry! Skóre: ${score}`); resetGame(); },100);
-}
-
-function resetGame(){
-    player.y = canvas.height/2 - player.height/2;
-    obstacles=[];
-    obstacleSpeed=5;
-    score=0;
-    scoreDisplay.textContent=`Skóre: ${score}`;
-    gameOver=false;
-    keys={};
-    updateGameArea();
-}
+function endGame(){ gameOver=true; setTimeout(()=>{ alert(`Konec hry! Skóre: ${score}`); resetGame(); },100); }
+function resetGame(){ player.y=canvas.height/2-player.height/2; obstacles=[]; obstacleSpeed=5; score=0; scoreDisplay.textContent=`Skóre: ${score}`; gameOver=false; keys={}; updateGameArea(); }
 
 updateGameArea();
 </script>
