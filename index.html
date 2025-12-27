@@ -42,7 +42,6 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const scoreDiv = document.getElementById("score");
 
-// ================== STAVY ==================
 let paused = false;
 let animationId = null;
 
@@ -62,8 +61,8 @@ let score = 0;
 let gameOver = false;
 let keys = {};
 
-let minDistance = 260;
-let minGap = player.size * 2;
+let minDistance = 320;
+let minGap = player.size * 2.6;
 let lastGapY = null;
 
 // ================== MOBIL ==================
@@ -89,53 +88,43 @@ document.addEventListener("keyup", e => keys[e.key] = false);
 canvas.addEventListener("touchmove", e => {
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
-    const touchY = e.touches[0].clientY - rect.top;
-    player.y = touchY - player.size / 2;
-
-    if (player.y < 0) player.y = 0;
-    if (player.y + player.size > canvas.height)
-        player.y = canvas.height - player.size;
+    const y = e.touches[0].clientY - rect.top;
+    player.y = y - player.size / 2;
+    player.y = Math.max(0, Math.min(player.y, canvas.height - player.size));
 }, { passive: false });
 
-// ================== PAUSE PŘI OTOČENÍ ==================
+// ================== ORIENTACE ==================
 function checkOrientation() {
     if (isMobile() && window.innerWidth > window.innerHeight) {
         pauseGame();
-
         canvas.style.display = "none";
         scoreDiv.style.display = "none";
 
         if (!document.getElementById("rotate")) {
-            const div = document.createElement("div");
-            div.id = "rotate";
-            div.innerText = "Otoč telefon na výšku 📱";
-            div.style.cssText = `
+            const d = document.createElement("div");
+            d.id = "rotate";
+            d.textContent = "Otoč telefon na výšku 📱";
+            d.style.cssText = `
                 position:fixed; inset:0;
-                background:black;
-                color:white;
-                display:flex;
-                align-items:center;
+                background:black; color:white;
+                display:flex; align-items:center;
                 justify-content:center;
-                font-size:24px;
-                z-index:10;
+                font-size:24px; z-index:10;
             `;
-            document.body.appendChild(div);
+            document.body.appendChild(d);
         }
     } else {
         resumeGame();
-
         canvas.style.display = "block";
         scoreDiv.style.display = "block";
-
         const r = document.getElementById("rotate");
         if (r) r.remove();
     }
 }
-
 window.addEventListener("resize", checkOrientation);
 window.addEventListener("orientationchange", checkOrientation);
 
-// ================== PAUSE / RESUME ==================
+// ================== PAUSE ==================
 function pauseGame() {
     if (!paused) {
         paused = true;
@@ -152,17 +141,16 @@ function resumeGame() {
 
 // ================== PŘEKÁŽKY (FAIR) ==================
 function createObstacle() {
-    const gapHeight = Math.max(minGap, player.size * 2);
+    const gapHeight = minGap;
 
     let gapY;
     if (lastGapY === null) {
         gapY = Math.random() * (canvas.height - gapHeight - 100) + 50;
     } else {
-        const maxShift = 120;
+        const maxShift = 80; // 👈 KLÍČOVÁ HODNOTA
         gapY = lastGapY + (Math.random() * maxShift * 2 - maxShift);
-        gapY = Math.max(40, Math.min(gapY, canvas.height - gapHeight - 40));
+        gapY = Math.max(50, Math.min(gapY, canvas.height - gapHeight - 50));
     }
-
     lastGapY = gapY;
 
     if (obstacles.length > 0) {
@@ -174,7 +162,7 @@ function createObstacle() {
         x: canvas.width,
         top: gapY,
         bottom: canvas.height - gapY - gapHeight,
-        width: 22,
+        width: 24,
         passed: false
     });
 }
@@ -187,7 +175,6 @@ function update() {
 
     if (keys["ArrowUp"]) player.y -= player.speed;
     if (keys["ArrowDown"]) player.y += player.speed;
-
     player.y = Math.max(0, Math.min(player.y, canvas.height - player.size));
 
     ctx.fillStyle = player.color;
@@ -222,8 +209,10 @@ function update() {
         }
     }
 
-    if (Math.random() < 0.08) createObstacle();
-    if (score > 0 && score % 6 === 0) obstacleSpeed = 6 + score / 12;
+    if (Math.random() < 0.06) createObstacle();
+
+    if (score > 0 && score % 8 === 0)
+        obstacleSpeed = 6 + score / 15;
 
     animationId = requestAnimationFrame(update);
 }
@@ -232,7 +221,6 @@ function update() {
 function endGame() {
     gameOver = true;
     cancelAnimationFrame(animationId);
-
     setTimeout(() => {
         alert("Konec hry! Skóre: " + score);
         reset();
@@ -244,8 +232,8 @@ function reset() {
     score = 0;
     obstacleSpeed = 6;
     lastGapY = null;
-    gameOver = false;
     paused = false;
+    gameOver = false;
     scoreDiv.textContent = "Skóre: 0";
     player.y = canvas.height / 2 - player.size / 2;
     update();
