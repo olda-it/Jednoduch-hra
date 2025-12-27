@@ -45,7 +45,7 @@ const scoreDiv = document.getElementById("score");
 let paused = false;
 let animationId = null;
 
-// ================== HRÁČ ==================
+// ===== HRÁČ =====
 let player = {
     x: 50,
     y: 0,
@@ -54,23 +54,22 @@ let player = {
     color: "green"
 };
 
-// ================== HRA ==================
+// ===== HRA =====
 let obstacles = [];
 let obstacleSpeed = 6;
 let score = 0;
 let gameOver = false;
 let keys = {};
 
-let minDistance = 320;
-let minGap = player.size * 2.6;
+let minGap = player.size * 3; // 👈 VĚTŠÍ MEZERA MEZI VRCH/SPOD
 let lastGapY = null;
 
-// ================== MOBIL ==================
+// ===== MOBIL =====
 function isMobile() {
     return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
-// ================== CANVAS ==================
+// ===== CANVAS =====
 function resizeCanvas() {
     canvas.width = window.innerWidth * 0.95;
     canvas.height = window.innerHeight * 0.85;
@@ -81,7 +80,7 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
-// ================== OVLÁDÁNÍ ==================
+// ===== OVLÁDÁNÍ =====
 document.addEventListener("keydown", e => keys[e.key] = true);
 document.addEventListener("keyup", e => keys[e.key] = false);
 
@@ -93,7 +92,7 @@ canvas.addEventListener("touchmove", e => {
     player.y = Math.max(0, Math.min(player.y, canvas.height - player.size));
 }, { passive: false });
 
-// ================== ORIENTACE ==================
+// ===== ORIENTACE =====
 function checkOrientation() {
     if (isMobile() && window.innerWidth > window.innerHeight) {
         pauseGame();
@@ -124,7 +123,7 @@ function checkOrientation() {
 window.addEventListener("resize", checkOrientation);
 window.addEventListener("orientationchange", checkOrientation);
 
-// ================== PAUSE ==================
+// ===== PAUSE =====
 function pauseGame() {
     if (!paused) {
         paused = true;
@@ -139,7 +138,7 @@ function resumeGame() {
     }
 }
 
-// ================== PŘEKÁŽKY (FAIR) ==================
+// ===== PŘEKÁŽKY =====
 function createObstacle() {
     const gapHeight = minGap;
 
@@ -147,27 +146,23 @@ function createObstacle() {
     if (lastGapY === null) {
         gapY = Math.random() * (canvas.height - gapHeight - 100) + 50;
     } else {
-        const maxShift = 80; // 👈 KLÍČOVÁ HODNOTA
+        const maxShift = 120; // plynulý posun
         gapY = lastGapY + (Math.random() * maxShift * 2 - maxShift);
-        gapY = Math.max(50, Math.min(gapY, canvas.height - gapHeight - 50));
+        gapY = Math.max(40, Math.min(gapY, canvas.height - gapHeight - 40));
     }
-    lastGapY = gapY;
 
-    if (obstacles.length > 0) {
-        const last = obstacles[obstacles.length - 1];
-        if (canvas.width - last.x < minDistance) return;
-    }
+    lastGapY = gapY;
 
     obstacles.push({
         x: canvas.width,
         top: gapY,
         bottom: canvas.height - gapY - gapHeight,
-        width: 24,
+        width: 22,
         passed: false
     });
 }
 
-// ================== HERNÍ SMYČKA ==================
+// ===== HERNÍ SMYČKA =====
 function update() {
     if (paused || gameOver) return;
 
@@ -209,15 +204,14 @@ function update() {
         }
     }
 
-    if (Math.random() < 0.06) createObstacle();
-
-    if (score > 0 && score % 8 === 0)
-        obstacleSpeed = 6 + score / 15;
+    if (Math.random() < 0.08) createObstacle();
+    if (score > 0 && score % 6 === 0)
+        obstacleSpeed = 6 + score / 12;
 
     animationId = requestAnimationFrame(update);
 }
 
-// ================== GAME OVER ==================
+// ===== GAME OVER =====
 function endGame() {
     gameOver = true;
     cancelAnimationFrame(animationId);
@@ -239,7 +233,7 @@ function reset() {
     update();
 }
 
-// ================== START ==================
+// ===== START =====
 checkOrientation();
 update();
 </script>
