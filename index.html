@@ -4,205 +4,256 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Jednoduchá Hra</title>
+
 <style>
 body {
     margin: 0;
+    background: #282c34;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
-    background-color: #282c34;
     overflow: hidden;
     font-family: Arial, sans-serif;
 }
 
 #gameCanvas {
-    border: 2px solid #fff;
-    background-color: #000;
+    background: black;
+    border: 2px solid white;
     touch-action: none;
 }
 
-#scoreDisplay {
+#score {
     position: absolute;
     top: 10px;
     left: 10px;
-    color: #fff;
+    color: white;
     font-size: 20px;
 }
 </style>
 </head>
-<body tabindex="0">
+
+<body>
 <canvas id="gameCanvas"></canvas>
-<div id="scoreDisplay">Skóre: 0</div>
+<div id="score">Skóre: 0</div>
 
 <script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const scoreDisplay = document.getElementById('scoreDisplay');
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const scoreDiv = document.getElementById("score");
 
-let player = { x:50, y:0, width:40, height:40, speed:10, color:'green' };
+// ================== STAVY ==================
+let paused = false;
+let animationId = null;
+
+// ================== HRÁČ ==================
+let player = {
+    x: 50,
+    y: 0,
+    size: 40,
+    speed: 9,
+    color: "green"
+};
+
+// ================== HRA ==================
 let obstacles = [];
 let obstacleSpeed = 6;
 let score = 0;
-let minGap = player.height * 1.8; // minimální mezera
-let maxGap = 250;
-let minDistance = 250; // vzdálenost mezi překážkami
 let gameOver = false;
 let keys = {};
 
-// Detekce mobilu
+let minDistance = 260;
+let minGap = player.size * 2;
+let lastGapY = null;
+
+// ================== MOBIL ==================
 function isMobile() {
-    return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
-// Responzivní canvas
-function resizeCanvas(){
-    if(!isMobile() || window.innerHeight > window.innerWidth){
-        canvas.width = window.innerWidth * 0.95;
-        canvas.height = window.innerHeight * 0.8;
-        if(player.y === 0) player.y = canvas.height/2 - player.height/2;
-    } else {
-        canvas.width = 0;
-        canvas.height = 0;
+// ================== CANVAS ==================
+function resizeCanvas() {
+    canvas.width = window.innerWidth * 0.95;
+    canvas.height = window.innerHeight * 0.85;
+    if (player.y === 0) {
+        player.y = canvas.height / 2 - player.size / 2;
     }
 }
-window.addEventListener('resize', () => { resizeCanvas(); checkOrientation(); });
-window.addEventListener('orientationchange', checkOrientation);
-window.addEventListener('load', () => { resizeCanvas(); checkOrientation(); });
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
 
-// --- PC ovládání šipkami ---
-document.addEventListener('keydown', e => keys[e.key] = true);
-document.addEventListener('keyup', e => keys[e.key] = false);
+// ================== OVLÁDÁNÍ ==================
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
 
-// --- Mobil – dotyk ---
-canvas.addEventListener('touchmove', e => {
+canvas.addEventListener("touchmove", e => {
     e.preventDefault();
-    const touch = e.touches[0];
     const rect = canvas.getBoundingClientRect();
-    const y = touch.clientY - rect.top;
-    player.y = y - player.height/2;
-    if(player.y < 0) player.y = 0;
-    if(player.y + player.height > canvas.height) player.y = canvas.height - player.height;
-}, {passive:false});
+    const touchY = e.touches[0].clientY - rect.top;
+    player.y = touchY - player.size / 2;
 
-// Kontrola orientace mobilu
+    if (player.y < 0) player.y = 0;
+    if (player.y + player.size > canvas.height)
+        player.y = canvas.height - player.size;
+}, { passive: false });
+
+// ================== PAUSE PŘI OTOČENÍ ==================
 function checkOrientation() {
-    if(isMobile() && window.innerHeight < window.innerWidth){
-        canvas.style.display = 'none';
-        scoreDisplay.style.display = 'none';
-        if(!document.getElementById('rotateNotice')){
-            const notice = document.createElement('div');
-            notice.id = 'rotateNotice';
-            notice.textContent = 'Prosím, otočte telefon na výšku (portrait).';
-            notice.style.cssText = `
-                position: fixed; top:0; left:0; right:0; bottom:0;
-                background:#000; color:#fff; font-size:24px;
-                display:flex; justify-content:center; align-items:center;
-                text-align:center; padding:20px; z-index:1000;
+    if (isMobile() && window.innerWidth > window.innerHeight) {
+        pauseGame();
+
+        canvas.style.display = "none";
+        scoreDiv.style.display = "none";
+
+        if (!document.getElementById("rotate")) {
+            const div = document.createElement("div");
+            div.id = "rotate";
+            div.innerText = "Otoč telefon na výšku 📱";
+            div.style.cssText = `
+                position:fixed; inset:0;
+                background:black;
+                color:white;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                font-size:24px;
+                z-index:10;
             `;
-            document.body.appendChild(notice);
+            document.body.appendChild(div);
         }
     } else {
-        canvas.style.display = 'block';
-        scoreDisplay.style.display = 'block';
-        const notice = document.getElementById('rotateNotice');
-        if(notice) notice.remove();
+        resumeGame();
+
+        canvas.style.display = "block";
+        scoreDiv.style.display = "block";
+
+        const r = document.getElementById("rotate");
+        if (r) r.remove();
     }
 }
 
-// Vytvoření překážky (vždy projítelné)
-function createObstacle(){
-    const gap = Math.random() * (maxGap - minGap) + minGap;
-    const topHeight = Math.random() * (canvas.height - gap - 40) + 20;
-    const bottomHeight = canvas.height - topHeight - gap;
+window.addEventListener("resize", checkOrientation);
+window.addEventListener("orientationchange", checkOrientation);
 
-    if(obstacles.length > 0){
+// ================== PAUSE / RESUME ==================
+function pauseGame() {
+    if (!paused) {
+        paused = true;
+        cancelAnimationFrame(animationId);
+    }
+}
+
+function resumeGame() {
+    if (paused && !gameOver) {
+        paused = false;
+        update();
+    }
+}
+
+// ================== PŘEKÁŽKY (FAIR) ==================
+function createObstacle() {
+    const gapHeight = Math.max(minGap, player.size * 2);
+
+    let gapY;
+    if (lastGapY === null) {
+        gapY = Math.random() * (canvas.height - gapHeight - 100) + 50;
+    } else {
+        const maxShift = 120;
+        gapY = lastGapY + (Math.random() * maxShift * 2 - maxShift);
+        gapY = Math.max(40, Math.min(gapY, canvas.height - gapHeight - 40));
+    }
+
+    lastGapY = gapY;
+
+    if (obstacles.length > 0) {
         const last = obstacles[obstacles.length - 1];
-        if(canvas.width - last.x < minDistance) return;
+        if (canvas.width - last.x < minDistance) return;
     }
 
     obstacles.push({
         x: canvas.width,
-        topHeight,
-        bottomHeight,
-        width: 20,
+        top: gapY,
+        bottom: canvas.height - gapY - gapHeight,
+        width: 22,
         passed: false
     });
 }
 
-// Hlavní smyčka
-function updateGameArea(){
-    if(gameOver) return;
+// ================== HERNÍ SMYČKA ==================
+function update() {
+    if (paused || gameOver) return;
 
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Pohyb hráče šipkami (PC)
-    if(keys['ArrowUp'] && player.y > 0) player.y -= player.speed;
-    if(keys['ArrowDown'] && player.y < canvas.height - player.height) player.y += player.speed;
+    if (keys["ArrowUp"]) player.y -= player.speed;
+    if (keys["ArrowDown"]) player.y += player.speed;
 
-    // Kreslení hráče
+    player.y = Math.max(0, Math.min(player.y, canvas.height - player.size));
+
     ctx.fillStyle = player.color;
-    ctx.fillRect(player.x, player.y, player.width, player.height);
+    ctx.fillRect(player.x, player.y, player.size, player.size);
 
-    // Překážky
-    for(let i=0;i<obstacles.length;i++){
-        const obs = obstacles[i];
-        obs.x -= obstacleSpeed;
+    for (let i = 0; i < obstacles.length; i++) {
+        const o = obstacles[i];
+        o.x -= obstacleSpeed;
 
-        ctx.fillStyle = 'red';
-        ctx.fillRect(obs.x, 0, obs.width, obs.topHeight);
-        ctx.fillRect(obs.x, canvas.height - obs.bottomHeight, obs.width, obs.bottomHeight);
+        ctx.fillStyle = "red";
+        ctx.fillRect(o.x, 0, o.width, o.top);
+        ctx.fillRect(o.x, canvas.height - o.bottom, o.width, o.bottom);
 
-        // Kolize
-        if(player.x < obs.x + obs.width && player.x + player.width > obs.x &&
-           (player.y < obs.topHeight || player.y + player.height > canvas.height - obs.bottomHeight)){
-            endGame(); return;
+        if (
+            player.x < o.x + o.width &&
+            player.x + player.size > o.x &&
+            (player.y < o.top || player.y + player.size > canvas.height - o.bottom)
+        ) {
+            endGame();
+            return;
         }
 
-        // Skóre
-        if(!obs.passed && obs.x + obs.width < player.x){
-            obs.passed = true;
+        if (!o.passed && o.x + o.width < player.x) {
+            o.passed = true;
             score++;
-            scoreDisplay.textContent = `Skóre: ${score}`;
+            scoreDiv.textContent = "Skóre: " + score;
         }
 
-        // Odstranění překážek mimo obrazovku
-        if(obs.x + obs.width < 0){
-            obstacles.splice(i,1);
+        if (o.x + o.width < 0) {
+            obstacles.splice(i, 1);
             i--;
         }
     }
 
-    // Generování překážek
-    if(Math.random() < 0.1) createObstacle();
+    if (Math.random() < 0.08) createObstacle();
+    if (score > 0 && score % 6 === 0) obstacleSpeed = 6 + score / 12;
 
-    // Postupné zvyšování obtížnosti
-    if(score % 5 === 0 && score !== 0) obstacleSpeed = 6 + score/10;
-
-    ctx.fillStyle = '#fff';
-    ctx.font = '20px Arial';
-    ctx.fillText(`Skóre: ${score}`, 10, 30);
-
-    requestAnimationFrame(updateGameArea);
+    animationId = requestAnimationFrame(update);
 }
 
-function endGame(){
+// ================== GAME OVER ==================
+function endGame() {
     gameOver = true;
-    setTimeout(()=>{ alert(`Konec hry! Skóre: ${score}`); resetGame(); }, 100);
+    cancelAnimationFrame(animationId);
+
+    setTimeout(() => {
+        alert("Konec hry! Skóre: " + score);
+        reset();
+    }, 100);
 }
 
-function resetGame(){
-    player.y = canvas.height/2 - player.height/2;
+function reset() {
     obstacles = [];
-    obstacleSpeed = 6;
     score = 0;
+    obstacleSpeed = 6;
+    lastGapY = null;
     gameOver = false;
-    keys = {};
-    updateGameArea();
+    paused = false;
+    scoreDiv.textContent = "Skóre: 0";
+    player.y = canvas.height / 2 - player.size / 2;
+    update();
 }
 
-// Spuštění hry
-updateGameArea();
+// ================== START ==================
+checkOrientation();
+update();
 </script>
 </body>
 </html>
