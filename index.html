@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Jednoduchá Hra</title>
+<title>Jednoduchá hra</title>
 
 <style>
 body {
     margin: 0;
-    background: #282c34;
+    background: #222;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -28,12 +28,13 @@ body {
     top: 10px;
     left: 10px;
     color: white;
-    font-size: 20px;
+    font-size: 22px;
 }
 </style>
 </head>
 
 <body>
+
 <canvas id="gameCanvas"></canvas>
 <div id="score">Skóre: 0</div>
 
@@ -42,26 +43,30 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const scoreDiv = document.getElementById("score");
 
+let animationId;
 let paused = false;
-let animationId = null;
+let gameOver = false;
 
 // ===== HRÁČ =====
-let player = {
-    x: 50,
+const player = {
+    x: 60,
     y: 0,
     size: 40,
     speed: 9,
-    color: "green"
+    color: "lime"
 };
 
 // ===== HRA =====
 let obstacles = [];
-let obstacleSpeed = 6;
 let score = 0;
-let gameOver = false;
 let keys = {};
 
-let minGap = player.size * 3; // 👈 VĚTŠÍ MEZERA MEZI VRCH/SPOD
+let baseSpeed = 5;
+let obstacleSpeed = baseSpeed;
+
+// 🔥 VELKÁ MEZERA NA VÝŠKU
+let minGap = player.size * 4.2; // ← HODNĚ VELKÁ DÍRA
+
 let lastGapY = null;
 
 // ===== MOBIL =====
@@ -94,7 +99,7 @@ canvas.addEventListener("touchmove", e => {
 
 // ===== ORIENTACE =====
 function checkOrientation() {
-    if (isMobile() && window.innerWidth > window.innerHeight) {
+    if (isMobile() && innerWidth > innerHeight) {
         pauseGame();
         canvas.style.display = "none";
         scoreDiv.style.display = "none";
@@ -146,7 +151,7 @@ function createObstacle() {
     if (lastGapY === null) {
         gapY = Math.random() * (canvas.height - gapHeight - 100) + 50;
     } else {
-        const maxShift = 120; // plynulý posun
+        const maxShift = 100;
         gapY = lastGapY + (Math.random() * maxShift * 2 - maxShift);
         gapY = Math.max(40, Math.min(gapY, canvas.height - gapHeight - 40));
     }
@@ -155,9 +160,9 @@ function createObstacle() {
 
     obstacles.push({
         x: canvas.width,
+        width: 22,
         top: gapY,
         bottom: canvas.height - gapY - gapHeight,
-        width: 22,
         passed: false
     });
 }
@@ -168,6 +173,7 @@ function update() {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // pohyb hráče
     if (keys["ArrowUp"]) player.y -= player.speed;
     if (keys["ArrowDown"]) player.y += player.speed;
     player.y = Math.max(0, Math.min(player.y, canvas.height - player.size));
@@ -183,6 +189,7 @@ function update() {
         ctx.fillRect(o.x, 0, o.width, o.top);
         ctx.fillRect(o.x, canvas.height - o.bottom, o.width, o.bottom);
 
+        // kolize
         if (
             player.x < o.x + o.width &&
             player.x + player.size > o.x &&
@@ -192,10 +199,14 @@ function update() {
             return;
         }
 
+        // skóre
         if (!o.passed && o.x + o.width < player.x) {
             o.passed = true;
             score++;
             scoreDiv.textContent = "Skóre: " + score;
+
+            // 🔥 ZRYCHLENÍ KAŽDÝCH 5 BODŮ
+            obstacleSpeed = baseSpeed + Math.floor(score / 5);
         }
 
         if (o.x + o.width < 0) {
@@ -204,9 +215,8 @@ function update() {
         }
     }
 
-    if (Math.random() < 0.08) createObstacle();
-    if (score > 0 && score % 6 === 0)
-        obstacleSpeed = 6 + score / 12;
+    // 🔥 PŘEKÁŽKY BLÍŽ U SEBE
+    if (Math.random() < 0.12) createObstacle();
 
     animationId = requestAnimationFrame(update);
 }
@@ -224,10 +234,10 @@ function endGame() {
 function reset() {
     obstacles = [];
     score = 0;
-    obstacleSpeed = 6;
+    obstacleSpeed = baseSpeed;
     lastGapY = null;
-    paused = false;
     gameOver = false;
+    paused = false;
     scoreDiv.textContent = "Skóre: 0";
     player.y = canvas.height / 2 - player.size / 2;
     update();
@@ -237,5 +247,6 @@ function reset() {
 checkOrientation();
 update();
 </script>
+
 </body>
 </html>
