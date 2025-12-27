@@ -23,12 +23,13 @@ body {
     touch-action: none;
 }
 
-#score {
+#scoreBox {
     position: absolute;
     top: 10px;
     left: 10px;
     color: white;
-    font-size: 22px;
+    font-size: 20px;
+    line-height: 1.4;
 }
 </style>
 </head>
@@ -36,16 +37,27 @@ body {
 <body>
 
 <canvas id="gameCanvas"></canvas>
-<div id="score">Skóre: 0</div>
+
+<div id="scoreBox">
+    Skóre: <span id="score">0</span><br>
+    Best: <span id="bestScore">0</span>
+</div>
 
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-const scoreDiv = document.getElementById("score");
+
+const scoreEl = document.getElementById("score");
+const bestScoreEl = document.getElementById("bestScore");
 
 let animationId;
 let paused = false;
 let gameOver = false;
+
+// ===== BEST SCORE (ULOŽENÍ) =====
+let bestScore = localStorage.getItem("bestScore");
+bestScore = bestScore ? Number(bestScore) : 0;
+bestScoreEl.textContent = bestScore;
 
 // ===== HRÁČ =====
 const player = {
@@ -64,10 +76,10 @@ let keys = {};
 const baseSpeed = 5;
 let obstacleSpeed = baseSpeed;
 
-// ✅ VELKÁ MEZERA NA VÝŠKU
+// velká mezera nahoře/dole
 const gapHeight = player.size * 4.2;
 
-// ✅ ROZESTUPY NA ŠÍŘKU – GARANTOVANÉ
+// rozestupy na šířku (garantované)
 const MIN_DISTANCE = 200;
 const MAX_DISTANCE = 280;
 const OBSTACLE_WIDTH = 22;
@@ -97,7 +109,7 @@ canvas.addEventListener("touchmove", e => {
     player.y = Math.max(0, Math.min(player.y, canvas.height - player.size));
 }, { passive: false });
 
-// ===== PŘEKÁŽKA =====
+// ===== PŘEKÁŽKY =====
 function createObstacle() {
     let gapY;
     if (lastGapY === null) {
@@ -115,7 +127,8 @@ function createObstacle() {
         top: gapY,
         bottom: canvas.height - gapY - gapHeight,
         passed: false,
-        nextDistance: Math.random() * (MAX_DISTANCE - MIN_DISTANCE) + MIN_DISTANCE
+        nextDistance:
+            Math.random() * (MAX_DISTANCE - MIN_DISTANCE) + MIN_DISTANCE
     });
 }
 
@@ -133,7 +146,7 @@ function update() {
     ctx.fillStyle = player.color;
     ctx.fillRect(player.x, player.y, player.size, player.size);
 
-    // ===== GENEROVÁNÍ – PODLE POSLEDNÍ PŘEKÁŽKY =====
+    // generování překážek
     if (
         obstacles.length === 0 ||
         canvas.width - (obstacles[obstacles.length - 1].x + OBSTACLE_WIDTH)
@@ -154,18 +167,28 @@ function update() {
         if (
             player.x < o.x + o.width &&
             player.x + player.size > o.x &&
-            (player.y < o.top || player.y + player.size > canvas.height - o.bottom)
+            (player.y < o.top ||
+             player.y + player.size > canvas.height - o.bottom)
         ) {
             endGame();
             return;
         }
 
-        // skóre + zrychlení
+        // skóre
         if (!o.passed && o.x + o.width < player.x) {
             o.passed = true;
             score++;
-            scoreDiv.textContent = "Skóre: " + score;
+            scoreEl.textContent = score;
+
+            // zrychlení po 5 bodech
             obstacleSpeed = baseSpeed + Math.floor(score / 5);
+
+            // BEST SCORE
+            if (score > bestScore) {
+                bestScore = score;
+                bestScoreEl.textContent = bestScore;
+                localStorage.setItem("bestScore", bestScore);
+            }
         }
 
         if (o.x + o.width < 0) {
@@ -193,7 +216,7 @@ function reset() {
     obstacleSpeed = baseSpeed;
     lastGapY = null;
     gameOver = false;
-    scoreDiv.textContent = "Skóre: 0";
+    scoreEl.textContent = 0;
     player.y = canvas.height / 2 - player.size / 2;
     update();
 }
