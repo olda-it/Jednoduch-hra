@@ -1,129 +1,235 @@
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jednoduchá Hra</title>
 
+<style>
+body {
+    margin: 0;
+    background: #282c34;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+}
+
+#gameCanvas {
+    background: black;
+    border: 2px solid white;
+    touch-action: none;
+}
+
+#score {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: white;
+    font-size: 20px;
+}
+</style>
+</head>
+
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="score">Skóre: 0</div>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const scoreDiv = document.getElementById("score");
+
+// ================== NASTAVENÍ ==================
 let player = {
     x: 50,
-    y: canvas.height / 2 - 20,
-    width: 40,
-    height: 40,
-    speed: 10,
-    color: 'green'
+    y: 0,
+    size: 40,
+    speed: 9,
+    color: "green"
 };
 
 let obstacles = [];
-let obstacleSpeed = 7; // rychlejší
+let obstacleSpeed = 6;
 let score = 0;
-
-let minGap = player.height + 80;  // menší mezera → těžší
-let maxGap = 200;                  // menší maximální mezera
-let minDistance = 180;             // menší vzdálenost mezi překážkami
-
 let gameOver = false;
+let keys = {};
 
+let minDistance = 260;
+let minGap = player.size * 2;
+let maxGap = 260;
+let lastGapY = null;
+
+// ================== MOBIL ==================
+function isMobile() {
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+// ================== CANVAS ==================
+function resizeCanvas() {
+    canvas.width = window.innerWidth * 0.95;
+    canvas.height = window.innerHeight * 0.85;
+    if (player.y === 0) {
+        player.y = canvas.height / 2 - player.size / 2;
+    }
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
+
+// ================== OVLÁDÁNÍ ==================
+// PC – šipky
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+// Mobil – dotyk
+canvas.addEventListener("touchmove", e => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const touchY = e.touches[0].clientY - rect.top;
+    player.y = touchY - player.size / 2;
+
+    if (player.y < 0) player.y = 0;
+    if (player.y + player.size > canvas.height)
+        player.y = canvas.height - player.size;
+}, { passive: false });
+
+// ================== ORIENTACE MOBILU ==================
+function checkOrientation() {
+    if (isMobile() && window.innerWidth > window.innerHeight) {
+        canvas.style.display = "none";
+        scoreDiv.style.display = "none";
+
+        if (!document.getElementById("rotate")) {
+            const div = document.createElement("div");
+            div.id = "rotate";
+            div.innerText = "Otoč telefon na výšku 📱";
+            div.style.cssText = `
+                position:fixed; inset:0;
+                background:black;
+                color:white;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                font-size:24px;
+                z-index:10;
+            `;
+            document.body.appendChild(div);
+        }
+    } else {
+        canvas.style.display = "block";
+        scoreDiv.style.display = "block";
+        const r = document.getElementById("rotate");
+        if (r) r.remove();
+    }
+}
+window.addEventListener("resize", checkOrientation);
+checkOrientation();
+
+// ================== PŘEKÁŽKY (FAIR) ==================
 function createObstacle() {
-    const gap = Math.random() * (maxGap - minGap) + minGap;
-    const topHeight = Math.random() * (canvas.height - gap - 40) + 20;
-    const bottomHeight = canvas.height - topHeight - gap;
+    const gapHeight = Math.max(minGap, player.size * 2);
 
-    // kontrola minimální vzdálenosti na ose X
+    let gapY;
+    if (lastGapY === null) {
+        gapY = Math.random() * (canvas.height - gapHeight - 100) + 50;
+    } else {
+        const maxShift = 120; // 🔑 klíč proti nemožným situacím
+        gapY = lastGapY + (Math.random() * maxShift * 2 - maxShift);
+        gapY = Math.max(40, Math.min(gapY, canvas.height - gapHeight - 40));
+    }
+    lastGapY = gapY;
+
     if (obstacles.length > 0) {
         const last = obstacles[obstacles.length - 1];
-        if (canvas.width - last.x < minDistance) {
-            return; // příliš blízko, nepřidávat
-        }
+        if (canvas.width - last.x < minDistance) return;
     }
 
     obstacles.push({
         x: canvas.width,
-        topHeight: topHeight,
-        bottomHeight: bottomHeight,
-        width: 20,
+        top: gapY,
+        bottom: canvas.height - gapY - gapHeight,
+        width: 22,
         passed: false
     });
 }
 
-function updateGameArea() {
+// ================== HRA ==================
+function update() {
     if (gameOver) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Pohyb hráče
-    if (keys['ArrowUp'] && player.y > 0) player.y -= player.speed;
-    if (keys['ArrowDown'] && player.y < canvas.height - player.height) player.y += player.speed;
+    // pohyb hráče
+    if (keys["ArrowUp"]) player.y -= player.speed;
+    if (keys["ArrowDown"]) player.y += player.speed;
 
-    // Kreslení hráče
+    player.y = Math.max(0, Math.min(player.y, canvas.height - player.size));
+
     ctx.fillStyle = player.color;
-    ctx.fillRect(player.x, player.y, player.width, player.height);
+    ctx.fillRect(player.x, player.y, player.size, player.size);
 
-    // Pohyb a kreslení překážek
     for (let i = 0; i < obstacles.length; i++) {
-        const obs = obstacles[i];
-        obs.x -= obstacleSpeed;
+        const o = obstacles[i];
+        o.x -= obstacleSpeed;
 
-        ctx.fillStyle = 'red';
-        ctx.fillRect(obs.x, 0, obs.width, obs.topHeight);
-        ctx.fillRect(obs.x, canvas.height - obs.bottomHeight, obs.width, obs.bottomHeight);
+        ctx.fillStyle = "red";
+        ctx.fillRect(o.x, 0, o.width, o.top);
+        ctx.fillRect(o.x, canvas.height - o.bottom, o.width, o.bottom);
 
-        // Kolize
+        // kolize
         if (
-            player.x < obs.x + obs.width &&
-            player.x + player.width > obs.x &&
-            (player.y < obs.topHeight || player.y + player.height > canvas.height - obs.bottomHeight)
+            player.x < o.x + o.width &&
+            player.x + player.size > o.x &&
+            (player.y < o.top || player.y + player.size > canvas.height - o.bottom)
         ) {
             endGame();
             return;
         }
 
-        // Skóre
-        if (!obs.passed && obs.x + obs.width < player.x) {
-            obs.passed = true;
+        if (!o.passed && o.x + o.width < player.x) {
+            o.passed = true;
             score++;
+            scoreDiv.textContent = "Skóre: " + score;
         }
 
-        // Odstranění mimo obrazovku
-        if (obs.x + obs.width < 0) {
+        if (o.x + o.width < 0) {
             obstacles.splice(i, 1);
             i--;
         }
     }
 
-    // Častější generování překážek
-    if (Math.random() < 0.08) {
-        createObstacle();
-    }
+    if (Math.random() < 0.08) createObstacle();
 
-    // Zvyšování obtížnosti rychleji
-    obstacleSpeed = 7 + score / 5;
+    if (score > 0 && score % 6 === 0)
+        obstacleSpeed = 6 + score / 12;
 
-    // Zobrazení skóre
-    ctx.fillStyle = '#fff';
-    ctx.font = '20px Arial';
-    ctx.fillText(`Skóre: ${score}`, 10, 30);
-
-    requestAnimationFrame(updateGameArea);
+    requestAnimationFrame(update);
 }
 
+// ================== GAME OVER ==================
 function endGame() {
     gameOver = true;
     setTimeout(() => {
-        alert(`Konec hry! Skóre: ${score}`);
-        resetGame();
+        alert("Konec hry! Skóre: " + score);
+        reset();
     }, 100);
 }
 
-function resetGame() {
-    player.y = canvas.height / 2 - 20;
+function reset() {
     obstacles = [];
-    obstacleSpeed = 7;
     score = 0;
+    obstacleSpeed = 6;
+    lastGapY = null;
     gameOver = false;
-    keys = {};
-    updateGameArea();
+    scoreDiv.textContent = "Skóre: 0";
+    player.y = canvas.height / 2 - player.size / 2;
+    update();
 }
 
-let keys = {};
-window.addEventListener('keydown', (e) => (keys[e.key] = true));
-window.addEventListener('keyup', (e) => (keys[e.key] = false));
-
-// Spuštění hry
-updateGameArea();
+// ================== START ==================
+update();
+</script>
+</body>
+</html>
