@@ -65,7 +65,13 @@ let baseSpeed = 5;
 let obstacleSpeed = baseSpeed;
 
 // 🔥 VELKÁ MEZERA NA VÝŠKU
-let minGap = player.size * 4.2; // ← HODNĚ VELKÁ DÍRA
+let gapHeight = player.size * 4.2;
+
+// ===== ROZESTUP NA ŠÍŘKU (KLÍČOVÉ) =====
+const MIN_OBSTACLE_DISTANCE = 180; // nikdy blíž
+const MAX_OBSTACLE_DISTANCE = 260; // nikdy dál
+let nextObstacleDistance = randomDistance();
+let distanceCounter = 0;
 
 let lastGapY = null;
 
@@ -143,10 +149,15 @@ function resumeGame() {
     }
 }
 
+// ===== POMOC =====
+function randomDistance() {
+    return Math.random() * 
+        (MAX_OBSTACLE_DISTANCE - MIN_OBSTACLE_DISTANCE) + 
+        MIN_OBSTACLE_DISTANCE;
+}
+
 // ===== PŘEKÁŽKY =====
 function createObstacle() {
-    const gapHeight = minGap;
-
     let gapY;
     if (lastGapY === null) {
         gapY = Math.random() * (canvas.height - gapHeight - 100) + 50;
@@ -165,6 +176,9 @@ function createObstacle() {
         bottom: canvas.height - gapY - gapHeight,
         passed: false
     });
+
+    nextObstacleDistance = randomDistance();
+    distanceCounter = 0;
 }
 
 // ===== HERNÍ SMYČKA =====
@@ -180,6 +194,12 @@ function update() {
 
     ctx.fillStyle = player.color;
     ctx.fillRect(player.x, player.y, player.size, player.size);
+
+    // vzdálenostní generátor
+    distanceCounter += obstacleSpeed;
+    if (distanceCounter >= nextObstacleDistance) {
+        createObstacle();
+    }
 
     for (let i = 0; i < obstacles.length; i++) {
         const o = obstacles[i];
@@ -205,7 +225,7 @@ function update() {
             score++;
             scoreDiv.textContent = "Skóre: " + score;
 
-            // 🔥 ZRYCHLENÍ KAŽDÝCH 5 BODŮ
+            // 🔥 zrychlení po 5 bodech
             obstacleSpeed = baseSpeed + Math.floor(score / 5);
         }
 
@@ -214,9 +234,6 @@ function update() {
             i--;
         }
     }
-
-    // 🔥 PŘEKÁŽKY BLÍŽ U SEBE
-    if (Math.random() < 0.12) createObstacle();
 
     animationId = requestAnimationFrame(update);
 }
@@ -236,6 +253,8 @@ function reset() {
     score = 0;
     obstacleSpeed = baseSpeed;
     lastGapY = null;
+    distanceCounter = 0;
+    nextObstacleDistance = randomDistance();
     gameOver = false;
     paused = false;
     scoreDiv.textContent = "Skóre: 0";
